@@ -104,8 +104,7 @@ def crawl_a_user_tweets(username):
                 )
                 if cur_total == 0:
                     print("BREAKING")
-                    import ipdb; ipdb.set_trace()
-
+                    break
                 total += cur_total
                 print("\tTWEETS CRAWLED : {}".format(total))
                 # print("\tSleeping for: {}".format(cur_data['new_latent_count']/100))
