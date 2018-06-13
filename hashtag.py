@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 # Loggers and warning
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
 
-hash_tag = "wildcraft"
+hash_tag = "sachinSachin"
 url = 'https://twitter.com/hashtag/{}?src=hash'.format(hash_tag)
 # constants
 HEADERS = {

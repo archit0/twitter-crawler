@@ -2,12 +2,20 @@ import requests
 import logging
 import warnings
 import json
+import re
+import time
 from bs4 import BeautifulSoup
 
 # Loggers and warning
 warnings.filterwarnings("ignore", category=UserWarning, module='bs4')
+f = open("user_tweets.csv", "w+")
 
+unique_hashtag_counts = {}
+total_combined_tweets = 0
 def crawl_a_user_tweets(username):
+    global total_combined_tweets
+    global unique_hashtag_counts
+    print("Crawling: {}".format(username))
     url = "https://twitter.com/{}".format(username)
     # constants
     headers = {
@@ -27,30 +35,37 @@ def crawl_a_user_tweets(username):
     start_index = data.index('max-position="')
     end_index = data.index('" d', start_index + 1)
     max_pos = data[start_index + 14: end_index]
-    f = open("user_tweets.csv", "w+")
 
     def save(username, handle, tweet_text, time_stamp):
+        tweet_text = tweet_text.replace('\n', " ")
         data = "{}|@|{}|@|{}|@|{}\n".format(
             username,
             handle,
-            tweet_text.replace('\n', " "),
+            tweet_text,
             time_stamp
         )
         f.write(data)
+        f.flush()
+        hashtags = re.findall(r"#(\w+)", tweet_text)
+        for each in hashtags:
+            unique_hashtag_counts[each] = unique_hashtag_counts.get(each, 0) + 1
 
     def normal_parse(soup):
         contents = soup.findAll('div', class_='content')
         for each_content in contents:
-            username = each_content.find('strong', class_='fullname').contents[0]
-            handle = each_content.find('a', class_='js-user-profile-link')['href']
-            tweet_text = each_content.find('p', class_='tweet-text').text
-            time_stamp = each_content.find('a', class_='tweet-timestamp')['title']
-            save(username, handle, tweet_text, time_stamp)
+            try:
+                username = each_content.find('strong', class_='fullname').contents[0]
+                handle = each_content.find('a', class_='js-user-profile-link')['href']
+                tweet_text = each_content.find('p', class_='tweet-text').text
+                time_stamp = each_content.find('a', class_='tweet-timestamp')['title']
+                save(username, handle, tweet_text, time_stamp)
+            except Exception as e:
+                pass
 
         return len(contents)
 
     total = normal_parse(soup)
-    print("TWEETS CRAWLED : {}".format(total))
+    print("\tTWEETS CRAWLED : {}".format(total))
     if total > 0:
         header = {
             'referer': url,
@@ -77,6 +92,7 @@ def crawl_a_user_tweets(username):
                     cookies=cookies
                 )
                 cur_data = json.loads(json.dumps(json.loads(req.content.decode('utf-8'))))
+
                 cookies = req.cookies
                 max_pos = cur_data['min_position']
                 cur_total = normal_parse(
@@ -88,15 +104,37 @@ def crawl_a_user_tweets(username):
                 )
                 if cur_total == 0:
                     print("BREAKING")
-                    break
+                    import ipdb; ipdb.set_trace()
+
                 total += cur_total
-                print("TWEETS CRAWLED : {}".format(total))
+                print("\tTWEETS CRAWLED : {}".format(total))
+                # print("\tSleeping for: {}".format(cur_data['new_latent_count']/100))
+                # time.sleep(cur_data['new_latent_count']/10)
             except Exception as e:
                 print("*"*50)
                 print(str(e))
                 print("STOPPING")
                 print("*"*50)
                 break
+    total_combined_tweets += total
 
+with open("tweets.csv") as data:
+    content = data.read().split('\n')
 
-crawl_a_user_tweets('architdwivedi0')
+crawler_user_dict = {}
+for row in content:
+    attrs = row.split('|@|')
+    if len(attrs) > 1:
+        username = attrs[1]
+        try:
+            if username not in crawler_user_dict:
+                crawler_user_dict[username] = True
+                crawl_a_user_tweets(username)
+        except Exception as e:
+            print(e)
+
+print("*" * 100)
+print("TOTAL UNIQUE USERNAME: {}".format(len(crawler_user_dict)))
+print("TOTAL TWEETS BY THESE USERS: {}".format(total_combined_tweets))
+print(unique_hashtag_counts)
+print("*" * 100)
