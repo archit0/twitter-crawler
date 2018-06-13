@@ -23,7 +23,7 @@ start_index = data.index('TWEET')
 end_index = data.index('"', start_index)
 max_pos = data[start_index: end_index]
 
-f = open("tweets.csv", "w")
+f = open("tweets.csv", "a+")
 
 def save(username, handle, tweet_text, time_stamp):
     data = "{}|@|{}|@|{}|@|{}\n".format(
